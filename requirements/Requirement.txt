@@ -1,1 +1,6 @@
 Staking smart Contract
+    1. When staking there are five level referrals. address will come from arg. referral amount based on percentage.
+    2. referral can be paused. 
+    3. survey bonus admin add bonus.
+    4. Unstaking error fix. renaming focus on staking name.
+    5. referral -> 24 hours -> claim every time.

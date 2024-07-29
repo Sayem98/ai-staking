@@ -202,7 +202,7 @@ interface IERC20 {
     ) external returns (bool);
 }
 
-contract Stakings is Ownable {
+contract Stakingss is Ownable {
     struct Offer {
         IERC20 token; // token that users will use to stake
         uint apy;
