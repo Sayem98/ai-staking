@@ -100,9 +100,6 @@ describe("Staking", function () {
     // from wei to ether
     
     balance = Number(ethers.formatEther(balance, 'ether'))-100;
-
-   
-
     // stake tokens
     const stakeTx = await staking.stake(0, stakeAmount, [
       '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
@@ -112,6 +109,45 @@ describe("Staking", function () {
       '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
     ]);
     await stakeTx.wait();
+
+    // premature unstake
+    const unstakeTx = await staking.unstake(0);
+    await unstakeTx.wait();
+
+    // Add assertions to verify the state after unstaking
+    expect(await token.balanceOf(owner.address)).to.equal(ethers.parseEther((balance + 100).toString(), 'ether')); // adjust the expected balance accordingly
+    
+  });
+
+  it('should do a mature unstake', async () => {
+    // create offer 
+    await staking.createOffer(100, 10, 3600, "Offer - 1 ");
+     // amount in wei
+    const stakeAmount = ethers.parseEther("100", 'ether');
+    // approve staking contract to spend tokens
+    await token.approve(staking.target, stakeAmount);
+
+    // transfer tokens to staking contract from owner address
+    await token.transfer(staking.target, ethers.parseEther("10000", 'ether'));
+
+
+    let balance = await token.balanceOf(owner.address);
+    // from wei to ether
+    
+    balance = Number(ethers.formatEther(balance, 'ether'))-100;
+    // stake tokens
+    const stakeTx = await staking.stake(0, stakeAmount, [
+      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
+      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
+      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
+      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
+      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
+    ]);
+    await stakeTx.wait();
+
+    // Fast forward time by 1 hour
+    await ethers.provider.send("evm_increaseTime", [3600]);
+    await ethers.provider.send("evm_mine");
 
     // premature unstake
     const unstakeTx = await staking.unstake(0);
@@ -186,6 +222,38 @@ describe("Staking", function () {
 
     const [,,,,numberOfStakers,,,] = await staking.stakingOffers(0);
     expect(numberOfStakers).to.equal(3);
+  });
+
+
+   it("should withdraw rewards correctly", async function () {
+    const duration = 3600; // 1 hour
+    const rewardRate = 10; // 10%
+    const minStake = 100;
+    const description = "Offer - 1";
+
+    // Create offer
+    const createOfferTx = await staking.createOffer(minStake, rewardRate, duration, description);
+    await createOfferTx.wait();
+
+    // Approve and stake tokens
+    await token.approve(staking.target, "200");
+    const stakeTx = await staking.stake(0, 100, [
+      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
+      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
+      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
+      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
+      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
+    ]);
+    await stakeTx.wait();
+
+    
+
+    // Withdraw rewards
+    const withdrawTx = await staking.withdrawReward(0);
+    const withdrawTxReceipt = await withdrawTx.wait();
+
+    console.log("Withdraw tx receipt:", withdrawTxReceipt);
+
   });
 
 });

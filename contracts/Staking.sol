@@ -589,6 +589,7 @@ contract Stakings is Ownable {
             stakingOffers[stakings[_id].id].apy,
             dayPassed
         );
+        console.log("reward", reward);
 
         require(token.transfer(msg.sender, reward), "Token transfer failed");
 
