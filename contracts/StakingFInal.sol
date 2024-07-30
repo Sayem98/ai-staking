@@ -204,10 +204,7 @@ interface IERC20 {
 
 // File: contracts/Staking.sol
 
-pragma solidity ^0.8.0;
-import "hardhat/console.sol";
-
-contract Stakings is Ownable {
+contract StakingsFinal is Ownable {
     struct StakingOffer {
         uint amount;
         uint apy;
@@ -500,7 +497,7 @@ contract Stakings is Ownable {
                 amount -= fee;
                 require(token.transfer(owner(), fee), "Token transfer failed");
             }
-            console.log("unstake amount", amount);
+
             require(
                 token.transfer(msg.sender, amount),
                 "Token transfer failed"
@@ -517,7 +514,7 @@ contract Stakings is Ownable {
                 stakingOffers[stakings[_id].id].apy,
                 dayPassed
             );
-            console.log("unstake amount", stakings[_id].amount + reward);
+
             require(
                 token.transfer(msg.sender, stakings[_id].amount + reward),
                 "Token transfer failed"
