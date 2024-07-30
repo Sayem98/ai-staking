@@ -1,0 +1,105 @@
+Stakings Contract Documentation
+Overview
+The Stakings contract allows users to stake tokens, earn rewards based on Annual Percentage Yield (APY), and participate in a referral program. The contract owner can manage staking offers, and users can stake tokens, claim rewards, and refer others to earn bonuses.
+
+Contracts and Interfaces
+Context
+Provides information about the current execution context, including the sender of the transaction and its data.
+
+Ownable
+Provides basic access control where there is an account (an owner) that can be granted exclusive access to specific functions.
+
+IERC20
+Interface of the ERC20 standard as defined in the EIP.
+
+Main Contract: Stakings
+-----------------------
+State Variables
+    stakingOffers: Array of all staking offers.
+    stakings: Mapping from staking ID to Staking struct.
+    usersStakeids: Mapping from user address to array of staking IDs.
+    numberOfStakes: Total number of stakes.
+    token: ERC20 token used for staking.
+    referralRewardPercentages: Array of percentages for referral rewards.
+    referralDailyRewardPercentages: Array of percentages for daily referral rewards.
+    isEnabledReferral: Boolean to enable/disable referrals.
+    isEnabledDailyReferralReward: Boolean to enable/disable daily referral rewards.
+    referrals: Mapping from address to Referral struct.
+    isEnabledUnstakeFee: Boolean to enable/disable unstake fee.
+    unstakeFeePercentage: Percentage of the unstake fee.
+
+Structs
+
+StakingOffer
+    amount: Required amount to stake.
+    apy: Annual Percentage Yield.
+    lockPeriod: Lock period for staking.
+    name: Name of the staking offer.
+    numberOfStakers: Number of unique stakers.
+    totalStaked: Total tokens staked.
+    isActive: Boolean to check if the offer is active.
+
+Staking
+    id: ID of the staking offer.
+    amount: Amount staked.
+    lastClaminedTime: Last time rewards were claimed.
+    unstakeTime: Time when tokens can be unstaked.
+    staker: Address of the staker.
+    bonus: Bonus amount.
+Referral
+    rewardClaimed: Total reward claimed.
+    lastClaimedTime: Last time referral reward was claimed.
+    dailyReward: Daily referral reward.
+Events
+    Staked(address indexed staker, uint indexed id, uint amount): Emitted when tokens are staked.
+    Unstaked(address indexed staker, uint indexed id, uint amount): Emitted when tokens are unstaked.
+    Claimed(address indexed staker, uint indexed id, uint amount): Emitted when rewards are claimed.
+    OfferCreated(uint indexed id, uint amount, uint apy, uint lockPeriod, string name): Emitted when a staking offer is created.
+    OfferEdited(uint indexed id, uint amount, uint apy, uint lockPeriod, string name): Emitted when a staking offer is edited.
+Functions
+    Constructor
+    constructor(address _token): Initializes the contract with the token address.
+    Create Offer
+    createOffer(uint _amount, uint _apy, uint _lockPeriod, string memory _name) external onlyOwner: Creates a new staking offer.
+    Edit Offer
+    editOffer(uint _id, uint _amount, uint _apy, uint _lockPeriod, string memory _name) external onlyOwner: Edits an existing staking offer.
+    Stake Tokens
+    stake(uint _id, uint _amount, address[5] memory _referrer) external: Allows users to stake tokens into a specific offer. Includes referral logic if enabled.
+    Add Stake
+    addStake(uint _id, uint _amount, address _staker) external onlyOwner: Allows the owner to add a stake on behalf of a user.
+    Add Multiple Stakes
+    addMultipleStake(uint[] memory _id, uint[] memory _amount, address[] memory _staker) external onlyOwner: Allows the owner to add multiple stakes on behalf of users.
+    Unstake Tokens
+    unstake(uint _id) external: Allows users to unstake their tokens. Includes unstake fee logic if enabled.
+    Unstake All Tokens
+    unstakeAll() external: Allows users to unstake all their stakes.
+    Claim Rewards
+    withdrawReward(uint _id) external: Allows users to claim rewards for a specific stake.
+    Claim All Rewards
+    claimAllRewards() external: Allows users to claim all their rewards from all stakes.
+    Add Bonus
+    addBonus(uint _id, uint _amount) external onlyOwner: Allows the owner to add a bonus to a specific stake.
+    Add Multiple Bonuses
+    addMultipleBonus(uint[] memory _ids, uint[] memory _amounts) external onlyOwner: Allows the owner to add multiple bonuses to multiple stakes.
+    Claim Bonus
+    claimBonus(uint _id) external: Allows users to claim bonus for a specific stake.
+    Claim All Bonuses
+    claimAllBonus() external: Allows users to claim all bonuses from all stakes.
+    Claim Referral Bonus
+    claimReferralBonus() external: Allows users to claim their daily referral bonuses.
+    Utility Functions
+    daysPassed(uint _id) public view returns (uint): Calculates the days passed since the last claim for a specific stake.
+    daysPassedReferral(address _referral) public view returns (uint): Calculates the days passed since the last referral bonus claim.
+    calculateReward(uint _amount, uint _apy, uint _days) public pure returns (uint): Calculates the reward based on the APY and days passed.
+    calculateDailyReferralReward(uint _amount, uint _apy, uint _percentage) public pure returns (uint): Calculates the daily referral reward.
+    Enable/Disable Features
+    enableReferral() external onlyOwner: Enables the referral system.
+    disableReferral() external onlyOwner: Disables the referral system.
+    enableDailyReferralReward() external onlyOwner: Enables daily referral rewards.
+    disableDailyReferralReward() external onlyOwner: Disables daily referral rewards.
+    enableUnstakeFee() external onlyOwner: Enables the unstake fee.
+    disableUnstakeFee() external onlyOwner: Disables the unstake fee.
+    setUnstakeFeePercentage(uint _percentage) external onlyOwner: Sets the unstake fee percentage.
+    setReferralRewardPercentages(uint[5] memory _percentages) external onlyOwner: Sets the referral reward percentages.
+Summary
+The Stakings contract provides a comprehensive staking mechanism with features like staking offers, referral rewards, and bonuses. It allows the owner to manage offers and stakes, and users to participate in staking, claim rewards, and earn referral bonuses.

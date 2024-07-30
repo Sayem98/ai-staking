@@ -3,4 +3,4 @@ Staking smart Contract
     2. referral can be paused. 
     3. survey bonus admin add bonus.
     4. Unstaking error fix. renaming focus on staking name.
-    5. referral -> 24 hours -> claim every time.
+    5. referral -> 24 hours -> claim every time. comes from user stake amount-> daily reward a certain percentage of that 
