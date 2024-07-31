@@ -204,9 +204,6 @@ interface IERC20 {
 
 // File: contracts/Staking.sol
 
-pragma solidity ^0.8.0;
-import "hardhat/console.sol";
-
 contract Stakings is Ownable {
     struct StakingOffer {
         uint amount;
@@ -223,7 +220,6 @@ contract Stakings is Ownable {
         uint lastClaminedTime;
         uint unstakeTime;
         address staker;
-        uint bonus;
     }
 
     struct Referral {
@@ -236,6 +232,7 @@ contract Stakings is Ownable {
 
     mapping(uint => Staking) public stakings;
     mapping(address => uint[]) public usersStakeids;
+    mapping(address => uint) public bonus;
 
     uint public numberOfStakes;
 
@@ -247,10 +244,6 @@ contract Stakings is Ownable {
     bool public isEnabledReferral = true;
     bool public isEnabledDailyReferralReward;
     mapping(address => Referral) public referrals;
-
-    // unstake
-    bool public isEnabledUnstakeFee = true;
-    uint public unstakeFeePercentage = 10;
 
     // events
     event Staked(address indexed staker, uint indexed id, uint amount);
@@ -342,22 +335,18 @@ contract Stakings is Ownable {
             _referrer: address of the referrer. array of address of the referrer 5.
      */
 
-    function stake(
-        uint _id,
-        uint _amount,
-        address[5] memory _referrer
-    ) external {
+    function stake(uint _id, address[5] memory _referrer) external {
         require(stakingOffers[_id].isActive, "Offer is not active");
         require(
-            _amount >= stakingOffers[_id].amount,
-            "Amount is less than required"
-        );
-        require(
-            token.transferFrom(msg.sender, address(this), _amount),
+            token.transferFrom(
+                msg.sender,
+                address(this),
+                stakingOffers[_id].amount
+            ),
             "Token transfer failed"
         );
 
-        stakingOffers[_id].totalStaked += _amount;
+        stakingOffers[_id].totalStaked += stakingOffers[_id].amount;
         // number of unique stakers
         stakingOffers[_id].numberOfStakers += 1;
 
@@ -365,8 +354,8 @@ contract Stakings is Ownable {
         if (isEnabledReferral) {
             for (uint i = 0; i < 5; i++) {
                 if (_referrer[i] != address(0)) {
-                    uint reward = (_amount * referralRewardPercentages[i]) /
-                        100;
+                    uint reward = (stakingOffers[_id].amount *
+                        referralRewardPercentages[i]) / 100;
                     require(
                         token.transfer(_referrer[i], reward),
                         "Token transfer failed"
@@ -374,7 +363,7 @@ contract Stakings is Ownable {
 
                     referrals[_referrer[i]]
                         .dailyReward += calculateDailyReferralReward(
-                        _amount,
+                        stakingOffers[_id].amount,
                         stakingOffers[_id].apy,
                         referralDailyRewardPercentages[i]
                     );
@@ -384,16 +373,15 @@ contract Stakings is Ownable {
 
         stakings[numberOfStakes] = Staking({
             id: _id,
-            amount: _amount,
+            amount: stakingOffers[_id].amount,
             lastClaminedTime: block.timestamp,
             unstakeTime: block.timestamp + stakingOffers[_id].lockPeriod,
-            staker: msg.sender,
-            bonus: 0
+            staker: msg.sender
         });
 
         usersStakeids[msg.sender].push(numberOfStakes);
 
-        emit Staked(msg.sender, numberOfStakes, _amount);
+        emit Staked(msg.sender, numberOfStakes, stakingOffers[_id].amount);
 
         numberOfStakes += 1;
     }
@@ -407,33 +395,24 @@ contract Stakings is Ownable {
             
      */
 
-    function addStake(
-        uint _id,
-        uint _amount,
-        address _staker
-    ) external onlyOwner {
+    function addStake(uint _id, address _staker) external onlyOwner {
         require(stakingOffers[_id].isActive, "Offer is not active");
-        require(
-            _amount >= stakingOffers[_id].amount,
-            "Amount is less than required"
-        );
 
-        stakingOffers[_id].totalStaked += _amount;
+        stakingOffers[_id].totalStaked += stakingOffers[_id].amount;
         // number of unique stakers
         stakingOffers[_id].numberOfStakers += 1;
 
         stakings[numberOfStakes] = Staking({
             id: _id,
-            amount: _amount,
+            amount: stakingOffers[_id].amount,
             lastClaminedTime: block.timestamp,
             unstakeTime: block.timestamp + stakingOffers[_id].lockPeriod,
-            staker: _staker,
-            bonus: 0
+            staker: _staker
         });
 
         usersStakeids[_staker].push(numberOfStakes);
 
-        emit Staked(_staker, numberOfStakes, _amount);
+        emit Staked(_staker, numberOfStakes, stakingOffers[_id].amount);
     }
 
     /*
@@ -448,36 +427,34 @@ contract Stakings is Ownable {
 
     function addMultipleStake(
         uint[] memory _id,
-        uint[] memory _amount,
         address[] memory _staker
     ) external onlyOwner {
-        require(_id.length == _amount.length, "Invalid input");
         require(_id.length == _staker.length, "Invalid input");
 
         for (uint i = 0; i < _id.length; i++) {
             if (stakingOffers[_id[i]].isActive) {
                 continue;
             }
-            if (_amount[i] >= stakingOffers[_id[i]].amount) {
-                continue;
-            }
 
-            stakingOffers[_id[i]].totalStaked += _amount[i];
+            stakingOffers[_id[i]].totalStaked += stakingOffers[_id[i]].amount;
             // number of unique stakers
             stakingOffers[_id[i]].numberOfStakers += 1;
 
             stakings[numberOfStakes] = Staking({
                 id: _id[i],
-                amount: _amount[i],
+                amount: stakingOffers[_id[i]].amount,
                 lastClaminedTime: block.timestamp,
                 unstakeTime: block.timestamp + stakingOffers[_id[i]].lockPeriod,
-                staker: _staker[i],
-                bonus: 0
+                staker: _staker[i]
             });
 
             usersStakeids[_staker[i]].push(numberOfStakes);
 
-            emit Staked(_staker[i], numberOfStakes, _amount[i]);
+            emit Staked(
+                _staker[i],
+                numberOfStakes,
+                stakingOffers[_id[i]].amount
+            );
         }
     }
 
@@ -492,39 +469,24 @@ contract Stakings is Ownable {
             stakings[_id].staker == msg.sender,
             "You are not the staker of this stake"
         );
-        // unstake time is premature
-        if (stakings[_id].unstakeTime > block.timestamp) {
-            uint amount = stakings[_id].amount;
-            if (isEnabledUnstakeFee) {
-                uint fee = (amount * unstakeFeePercentage) / 100;
-                amount -= fee;
-                require(token.transfer(owner(), fee), "Token transfer failed");
-            }
-            console.log("unstake amount", amount);
-            require(
-                token.transfer(msg.sender, amount),
-                "Token transfer failed"
-            );
+        require(
+            stakings[_id].unstakeTime > block.timestamp,
+            "Unstake time not passed"
+        );
+        // unstake time passed sent all token
+        // calculate reward also
+        uint dayPassed = daysPassed(_id);
+        uint reward = calculateReward(
+            stakings[_id].amount,
+            stakingOffers[stakings[_id].id].apy,
+            dayPassed
+        );
+        require(
+            token.transfer(msg.sender, stakings[_id].amount + reward),
+            "Token transfer failed"
+        );
 
-            emit Unstaked(msg.sender, _id, amount);
-        } else {
-            // unstake time passed sent all token
-
-            // calculate reward also
-            uint dayPassed = daysPassed(_id);
-            uint reward = calculateReward(
-                stakings[_id].amount,
-                stakingOffers[stakings[_id].id].apy,
-                dayPassed
-            );
-            console.log("unstake amount", stakings[_id].amount + reward);
-            require(
-                token.transfer(msg.sender, stakings[_id].amount + reward),
-                "Token transfer failed"
-            );
-
-            emit Unstaked(msg.sender, _id, stakings[_id].amount + reward);
-        }
+        emit Unstaked(msg.sender, _id, stakings[_id].amount + reward);
     }
 
     /*
@@ -538,18 +500,7 @@ contract Stakings is Ownable {
         for (uint i = 0; i < usersStakeids[msg.sender].length; i++) {
             uint id = usersStakeids[msg.sender][i];
             if (stakings[id].unstakeTime < block.timestamp) {
-                uint amount = stakings[id].amount;
-                if (isEnabledUnstakeFee) {
-                    uint fee = (amount * unstakeFeePercentage) / 100;
-                    amount -= fee;
-                    require(
-                        token.transfer(owner(), fee),
-                        "Token transfer failed"
-                    );
-                }
-
-                totalAmount += amount;
-                emit Unstaked(msg.sender, id, amount);
+                continue;
             } else {
                 // unstake time passed sent all token
 
@@ -583,6 +534,11 @@ contract Stakings is Ownable {
             "You are not the staker of this stake"
         );
 
+        require(
+            stakings[_id].unstakeTime <= block.timestamp,
+            "Unstake time passed"
+        );
+
         uint dayPassed = daysPassed(_id);
         uint reward = calculateReward(
             stakings[_id].amount,
@@ -604,6 +560,12 @@ contract Stakings is Ownable {
     function claimAllRewards() external {
         uint totalRewards = 0;
         for (uint i = 0; i < usersStakeids[msg.sender].length; i++) {
+            if (
+                stakings[usersStakeids[msg.sender][i]].unstakeTime >
+                block.timestamp
+            ) {
+                continue;
+            }
             uint id = usersStakeids[msg.sender][i];
             uint dayPassed = daysPassed(id);
             uint reward = calculateReward(
@@ -633,17 +595,8 @@ contract Stakings is Ownable {
             _amount: amount of the bonus.
      */
 
-    function addBonus(uint _id, uint _amount) external onlyOwner {
-        require(
-            stakings[_id].staker != address(0),
-            "Stake does not exist with this id"
-        );
-        require(
-            token.transferFrom(owner(), address(this), _amount),
-            "Token transfer failed"
-        );
-
-        stakings[_id].bonus += _amount;
+    function addBonus(address _address, uint _amount) external onlyOwner {
+        bonus[_address] += _amount;
     }
 
     /*
@@ -654,24 +607,13 @@ contract Stakings is Ownable {
      */
 
     function addMultipleBonus(
-        uint[] memory _ids,
+        address[] memory _addresses,
         uint[] memory _amounts
     ) external onlyOwner {
-        require(_ids.length == _amounts.length, "Invalid input");
-        uint totalAmount = 0;
-        for (uint i = 0; i < _ids.length; i++) {
-            require(
-                stakings[_ids[i]].staker != address(0),
-                "Stake does not exist with this id"
-            );
-            totalAmount += _amounts[i];
-            stakings[_ids[i]].bonus += _amounts[i];
+        require(_addresses.length == _amounts.length, "Invalid input");
+        for (uint i = 0; i < _addresses.length; i++) {
+            bonus[_addresses[i]] += _amounts[i];
         }
-
-        require(
-            token.transferFrom(owner(), address(this), totalAmount),
-            "Token transfer failed"
-        );
     }
 
     /*
@@ -685,39 +627,11 @@ contract Stakings is Ownable {
             stakings[_id].staker == msg.sender,
             "You are not the staker of this stake"
         );
+        uint amount = bonus[msg.sender];
+        bonus[msg.sender] = 0;
+        require(token.transfer(msg.sender, amount), "Token transfer failed");
 
-        require(
-            token.transfer(msg.sender, stakings[_id].bonus),
-            "Token transfer failed"
-        );
-
-        emit Claimed(msg.sender, _id, stakings[_id].bonus);
-
-        stakings[_id].bonus = 0;
-    }
-
-    /*
-        @des function to claim all bonus.
-        @params
-            _id: id of the stake.
-     */
-
-    function claimAllBonus() external {
-        uint totalBonus = 0;
-        for (uint i = 0; i < usersStakeids[msg.sender].length; i++) {
-            uint id = usersStakeids[msg.sender][i];
-            totalBonus += stakings[id].bonus;
-
-            emit Claimed(msg.sender, id, stakings[id].bonus);
-
-            stakings[id].bonus = 0;
-        }
-
-        require(
-            token.transfer(msg.sender, totalBonus),
-            "Token transfer failed"
-        );
-        emit Claimed(msg.sender, 0, totalBonus);
+        emit Claimed(msg.sender, _id, amount);
     }
 
     function claimReferralBonus() external {
@@ -745,7 +659,7 @@ contract Stakings is Ownable {
             _id: id of the stake.
      */
 
-    function daysPassed(uint _id) public view returns (uint) {
+    function daysPassed(uint _id) private view returns (uint) {
         return (block.timestamp - stakings[_id].lastClaminedTime) / 1 days;
     }
 
@@ -755,7 +669,7 @@ contract Stakings is Ownable {
             _id: id of the stake.
      */
 
-    function daysPassedReferral(address _referral) public view returns (uint) {
+    function daysPassedReferral(address _referral) private view returns (uint) {
         return
             (block.timestamp - referrals[_referral].lastClaimedTime) / 1 days;
     }
@@ -772,7 +686,7 @@ contract Stakings is Ownable {
         uint _amount,
         uint _apy,
         uint _days
-    ) public pure returns (uint) {
+    ) private pure returns (uint) {
         return (_amount * _apy * _days) / (100 * 365);
     }
 
@@ -787,8 +701,64 @@ contract Stakings is Ownable {
         uint _amount,
         uint _apy,
         uint _percentage
-    ) public pure returns (uint) {
+    ) private pure returns (uint) {
         return ((((_amount * _apy) / 100) * 365) * _percentage) / 100;
+    }
+
+    /*
+        @des function to get daily reward of a stake id.
+        @params
+            _id: id of the stake.
+            
+     */
+
+    function getDailyStakeReward(uint _id) public view returns (uint) {
+        uint dayPassed = daysPassed(_id);
+        return
+            calculateReward(
+                stakings[_id].amount,
+                stakingOffers[stakings[_id].id].apy,
+                dayPassed
+            );
+    }
+
+    /*
+        @des function to get daily reward of a staker from all his stakes.
+        @params     
+     */
+
+    function getAllStakeDailyReward(
+        address _address
+    ) public view returns (uint) {
+        // get all the ids of the _address
+        uint totalReward = 0;
+        for (uint i = 0; i < usersStakeids[_address].length; i++) {
+            uint id = usersStakeids[_address][i];
+            if (stakings[id].unstakeTime > block.timestamp) {
+                continue;
+            } else {
+                uint dayPassed = daysPassed(id);
+                uint reward = calculateReward(
+                    stakings[id].amount,
+                    stakingOffers[stakings[id].id].apy,
+                    dayPassed
+                );
+                totalReward += reward;
+            }
+        }
+        return totalReward;
+    }
+
+    /*
+        @des function to get daily referral reward of a referrer
+        @params     
+     */
+
+    function getDailyReferralReward(
+        address _address
+    ) public view returns (uint) {
+        uint _daysPassedReferral = daysPassedReferral(_address);
+        return _daysPassedReferral * referrals[_address].dailyReward;
     }
 
     /*
@@ -821,32 +791,6 @@ contract Stakings is Ownable {
 
     function disableDailyReferralReward() external onlyOwner {
         isEnabledDailyReferralReward = false;
-    }
-
-    /*
-        @des function to enable unstake fee.
-     */
-
-    function enableUnstakeFee() external onlyOwner {
-        isEnabledUnstakeFee = true;
-    }
-
-    /*
-        @des function to disable unstake fee.
-     */
-
-    function disableUnstakeFee() external onlyOwner {
-        isEnabledUnstakeFee = false;
-    }
-
-    /*
-        @des function to set unstake fee percentage.
-        @params
-            _percentage: percentage of the fee.
-     */
-
-    function setUnstakeFeePercentage(uint _percentage) external onlyOwner {
-        unstakeFeePercentage = _percentage;
     }
 
     /*
