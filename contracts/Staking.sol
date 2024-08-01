@@ -235,7 +235,7 @@ contract Stakings is Ownable {
     StakingOffer[] public stakingOffers;
 
     mapping(uint => Staking) public stakings;
-    mapping(address => uint[]) public usersStakeids;
+    mapping(address => uint[]) private usersStakeids;
     mapping(address => uint) public bonus;
 
     uint public numberOfStakes;
@@ -531,7 +531,7 @@ contract Stakings is Ownable {
         );
         // unstake time passed sent all token
         // calculate reward also
-        (uint dayPassed, uint remainingTime) = daysPassed(_id);
+        (uint dayPassed, ) = daysPassed(_id);
         uint reward = calculateReward(
             stakings[_id].amount,
             stakingOffers[stakings[_id].id].apy,
@@ -561,7 +561,7 @@ contract Stakings is Ownable {
                 // unstake time passed sent all token
 
                 // calculate reward also
-                (uint dayPassed, uint remainingTime) = daysPassed(id);
+                (uint dayPassed, ) = daysPassed(id);
                 uint reward = calculateReward(
                     stakings[id].amount,
                     stakingOffers[stakings[id].id].apy,
@@ -783,6 +783,11 @@ contract Stakings is Ownable {
 
     function getDailyStakeReward(uint _id) public view returns (uint) {
         (uint dayPassed, ) = daysPassed(_id);
+        // is stake days are passed it should show 0
+        if (stakings[_id].unstakeTime > block.timestamp) {
+            return 0;
+        }
+
         return
             calculateReward(
                 stakings[_id].amount,
@@ -882,5 +887,42 @@ contract Stakings is Ownable {
 
     function setPerDay(uint _perDay) external onlyOwner {
         perDay = _perDay;
+    }
+
+    /*
+        @des function to withdraw all token by admin
+        @params
+            
+     */
+
+    function withdraw() external onlyOwner {
+        require(
+            token.transfer(msg.sender, token.balanceOf(address(this))),
+            "Token transfer failed"
+        );
+    }
+
+    /*
+        @des function to set referral daily reward percentages.
+        @params
+            _percentages: array of percentage of the reward.
+     */
+
+    function setReferralDailyRewardPercentages(
+        uint[5] memory _percentages
+    ) external onlyOwner {
+        referralDailyRewardPercentages = _percentages;
+    }
+
+    /*
+        @des function get all user stake ids by address
+        @params
+            _address: address of the user.
+     */
+
+    function getUserStakeIds(
+        address _address
+    ) external view returns (uint[] memory) {
+        return usersStakeids[_address];
     }
 }
