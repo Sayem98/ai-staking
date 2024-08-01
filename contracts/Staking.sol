@@ -700,13 +700,14 @@ contract Stakings is Ownable {
 
         uint totalReward = _daysPassedReferral *
             referrals[msg.sender].dailyReward;
+
+        referrals[msg.sender].lastClaimedTime = block.timestamp;
+        referrals[msg.sender].remainingTime = _remainingTime;
+
         require(
             token.transfer(msg.sender, totalReward),
             "Token transfer failed"
         );
-
-        referrals[msg.sender].lastClaimedTime = block.timestamp;
-        referrals[msg.sender].remainingTime = _remainingTime;
 
         emit Claimed(msg.sender, msg.sender, totalReward);
     }
