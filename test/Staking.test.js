@@ -19,7 +19,7 @@ describe("Staking", function () {
     const minStake = 100;
     const description = "Offer - 1";
 
-    const createOfferTx = await staking.createOffer(minStake, rewardRate, duration, description);
+    const createOfferTx = await staking.createOffer(minStake, rewardRate, duration, description, 2);
     await createOfferTx.wait();
 
     const [minStakeReturned, rewardRateReturned, durationReturned, descriptionReturned, amountStaked, rewardsDistributed, isActive] = await staking.stakingOffers(0);
@@ -37,7 +37,7 @@ describe("Staking", function () {
     const minStake = 100;
     const description = "Offer - 1";
 
-    const createOfferTx = await staking.createOffer(minStake, rewardRate, duration, description);
+    const createOfferTx = await staking.createOffer(minStake, rewardRate, duration, description, 2);
     await createOfferTx.wait();
 
     // Edit the offer
@@ -46,7 +46,7 @@ describe("Staking", function () {
     const newMinStake = 200;
     const newDescription = "Updated Offer - 1";
 
-    const editOfferTx = await staking.editOffer(0, newMinStake, newRewardRate, newDuration, newDescription);
+    const editOfferTx = await staking.editOffer(0, newMinStake, newRewardRate, newDuration, newDescription, 2);
     await editOfferTx.wait();
 
         const [minStakeReturned, rewardRateReturned, durationReturned, descriptionReturned, amountStaked, rewardsDistributed, isActive] = await staking.stakingOffers(0);
@@ -62,22 +62,20 @@ describe("Staking", function () {
     expect(await token.balanceOf(owner.address)).to.equal("100000000000000000000000"); // checking balance of owner
 
     // create offer 
-    await staking.createOffer('100000000000000000000', 10, 3600, "Offer - 1 ");
+    await staking.createOffer('100000000000000000000', 10, 3600, "Offer - 1 ", 2);
 
     // approve staking contract to spend tokens
     await token.approve(staking.target, '100000000000000000000');
 
     // check allowance
     expect(await token.allowance(owner.address, staking.target)).to.equal('100000000000000000000');
+    const addresses = [];
+    for (let i = 0; i < 10; i++) {
+      addresses.push(ethers.Wallet.createRandom().address);
+    }
 
-    // stake tokens
-    const stakeTx = await staking.stake(0, [
-      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
-      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
-      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
-      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
-      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
-    ]);
+    // stake tokens and use 10 diffrent address as referral 
+    const stakeTx = await staking.stake(0, addresses);
     await stakeTx.wait();
 
     const offer = await staking.stakingOffers(0);
@@ -103,7 +101,7 @@ describe("Staking", function () {
     expect(await token.balanceOf(owner.address)).to.equal("100000000000000000000000"); // checking balance of owner
 
     // create offer 
-    await staking.createOffer('100000000000000000000', 10, 3600, "Offer - 1 ");
+    await staking.createOffer('100000000000000000000', 10, 3600, "Offer - 1 ", 2);
 
     // approve staking contract to spend tokens
     await token.approve(staking.target, '100000000000000000000');
@@ -111,14 +109,43 @@ describe("Staking", function () {
     // check allowance
     expect(await token.allowance(owner.address, staking.target)).to.equal('100000000000000000000');
 
-    // stake tokens
-    const stakeTx = await staking.stake(0, [
-      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
-      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
-      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
-      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
-      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
-    ]);
+    // get 10 address
+    const addresses = [];
+    for (let i = 0; i < 10; i++) {
+      addresses.push(ethers.Wallet.createRandom().address);
+    }
+
+    // stake tokens and use 10 diffrent address as referral 
+    const stakeTx = await staking.stake(0, addresses);
+
+    await token.approve(staking.target, '100000000000000000000');
+
+    // get 10 address
+    const addresses2 = [];
+    for (let i = 0; i < 10; i++) {
+      addresses2.push(ethers.Wallet.createRandom().address);
+    }
+
+    // stake tokens and use 10 diffrent address as referral 
+    const stakeTx2 = await staking.stake(0, addresses2);
+      await token.approve(staking.target, '100000000000000000000');
+
+    // get 10 address
+    const addresses3 = [];
+    for (let i = 0; i < 10; i++) {
+      addresses3.push(ethers.Wallet.createRandom().address);
+    }
+
+    // stake tokens and use 10 diffrent address as referral 
+    const stakeTx3 = await staking.stake(0, addresses3);
+    
+    // check the reward
+    for (let i = 0; i < 10; i++) {
+      const referralReward = await staking.referrals(addresses[i]);
+      console.log('Referral Reward:', referralReward.dailyReward.toString());
+    }
+    
+
     await stakeTx.wait();
 
     const offer = await staking.stakingOffers(0);
@@ -177,23 +204,20 @@ describe("Staking", function () {
     expect(await token.balanceOf(owner.address)).to.equal("100000000000000000000000"); // checking balance of owner
 
     // create offer 
-    await staking.createOffer('100000000000000000000', 10, 3600, "Offer - 1 ");
+    await staking.createOffer('100000000000000000000', 10, 3600, "Offer - 1 ", 2);
 
     // approve staking contract to spend tokens
     await token.approve(staking.target, '100000000000000000000');
 
     // check allowance
     expect(await token.allowance(owner.address, staking.target)).to.equal('100000000000000000000');
+    let addresses = [];
+    for (let i = 0; i < 10; i++) {
+      addresses.push(ethers.Wallet.createRandom().address);
+    }
 
-    // stake tokens
-    const stakeTx = await staking.stake(0, [
-      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
-      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
-      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
-      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
-      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
-    ]);
-    await stakeTx.wait();
+    // stake tokens and use 10 diffrent address as referral 
+    const stakeTx = await staking.stake(0, addresses);
 
 
     // fast forword to 1 hour

@@ -215,6 +215,7 @@ contract Stakings is Ownable {
         uint numberOfStakers;
         uint totalStaked;
         bool isActive;
+        uint limit;
     }
     struct Staking {
         uint id;
@@ -223,7 +224,7 @@ contract Stakings is Ownable {
         uint unstakeTime;
         address staker;
         uint remainingTime;
-        address[5] referrals;
+        address[10] referrals;
     }
 
     struct Referral {
@@ -231,6 +232,7 @@ contract Stakings is Ownable {
         uint lastClaimedTime;
         uint dailyReward;
         uint remainingTime;
+        uint remainingReward;
     }
 
     StakingOffer[] public stakingOffers;
@@ -243,9 +245,20 @@ contract Stakings is Ownable {
 
     IERC20 public token;
 
-    //referral
-    uint[5] public referralRewardPercentages = [10, 5, 3, 2, 1];
-    uint[5] public referralDailyRewardPercentages = [10, 5, 3, 2, 1];
+    //referral 10
+    uint[10] public referralRewardPercentages = [10, 5, 3, 2, 1, 1, 1, 1, 1, 1];
+    uint[10] public referralDailyRewardPercentages = [
+        10,
+        5,
+        3,
+        2,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+    ];
     bool public isEnabledReferral = true;
     bool public isEnabledDailyReferralReward;
     mapping(address => Referral) public referrals;
@@ -282,12 +295,14 @@ contract Stakings is Ownable {
             _apy: APY of the stake.
             _lockPeriod: lock period of the stake.
             _name: name of the stake.
+            _limit: limit of the stake.
      */
     function createOffer(
         uint _amount,
         uint _apy,
         uint _lockPeriod,
-        string memory _name
+        string memory _name,
+        uint _limit
     ) external onlyOwner {
         stakingOffers.push(
             StakingOffer({
@@ -297,7 +312,8 @@ contract Stakings is Ownable {
                 name: _name,
                 totalStaked: 0,
                 numberOfStakers: 0,
-                isActive: true
+                isActive: true,
+                limit: _limit
             })
         );
         emit OfferCreated(
@@ -317,6 +333,7 @@ contract Stakings is Ownable {
             _apy: APY of the stake.
             _lockPeriod: lock period of the stake.
             _name: name of the stake.
+            _limit: limit of the stake.
      */
 
     function editOffer(
@@ -324,12 +341,14 @@ contract Stakings is Ownable {
         uint _amount,
         uint _apy,
         uint _lockPeriod,
-        string memory _name
+        string memory _name,
+        uint _limit
     ) external onlyOwner {
         stakingOffers[_id].amount = _amount;
         stakingOffers[_id].apy = _apy;
         stakingOffers[_id].lockPeriod = _lockPeriod;
         stakingOffers[_id].name = _name;
+        stakingOffers[_id].limit = _limit;
 
         emit OfferEdited(_id, _amount, _apy, _lockPeriod, _name);
     }
@@ -342,7 +361,8 @@ contract Stakings is Ownable {
             _referrer: address of the referrer. array of address of the referrer 5.
      */
 
-    function stake(uint _id, address[5] memory _referrer) external {
+    function stake(uint _id, address[10] memory _referrer) external {
+        require(stakingOffers[_id].limit > 0, "Offer limit reached");
         require(stakingOffers[_id].isActive, "Offer is not active");
         require(
             token.transferFrom(
@@ -359,7 +379,7 @@ contract Stakings is Ownable {
 
         // if referral is enabled
         if (isEnabledReferral) {
-            for (uint i = 0; i < 5; i++) {
+            for (uint i = 0; i < 10; i++) {
                 if (_referrer[i] != address(0)) {
                     uint reward = (stakingOffers[_id].amount *
                         referralRewardPercentages[i]) / 100;
@@ -381,6 +401,9 @@ contract Stakings is Ownable {
                 }
             }
         }
+
+        // reduce the limit of the offer
+        stakingOffers[_id].limit -= 1;
 
         stakings[numberOfStakes] = Staking({
             id: _id,
@@ -411,8 +434,9 @@ contract Stakings is Ownable {
     function addStake(
         uint _id,
         address _staker,
-        address[5] memory _referrals
+        address[10] memory _referrals
     ) external onlyOwner {
+        require(stakingOffers[_id].limit > 0, "Offer limit reached");
         require(stakingOffers[_id].isActive, "Offer is not active");
 
         stakingOffers[_id].totalStaked += stakingOffers[_id].amount;
@@ -421,7 +445,7 @@ contract Stakings is Ownable {
 
         // if referral is enabled
         if (isEnabledReferral) {
-            for (uint i = 0; i < 5; i++) {
+            for (uint i = 0; i < 10; i++) {
                 if (_referrals[i] != address(0)) {
                     referrals[_referrals[i]]
                         .dailyReward += calculateDailyReferralReward(
@@ -436,6 +460,9 @@ contract Stakings is Ownable {
                 }
             }
         }
+
+        // reduce the limit of the offer
+        stakingOffers[_id].limit -= 1;
 
         stakings[numberOfStakes] = Staking({
             id: _id,
@@ -466,7 +493,7 @@ contract Stakings is Ownable {
     function addMultipleStake(
         uint[] memory _id,
         address[] memory _staker,
-        address[][5] memory _referrals
+        address[][10] memory _referrals
     ) external onlyOwner {
         require(_id.length == _staker.length, "Invalid input");
 
@@ -474,15 +501,21 @@ contract Stakings is Ownable {
             if (stakingOffers[_id[i]].isActive) {
                 continue;
             }
+            if (stakingOffers[_id[i]].limit == 0) {
+                break;
+            }
+
+            // reduce the limit of the offer
+            stakingOffers[_id[i]].limit -= 1;
 
             stakingOffers[_id[i]].totalStaked += stakingOffers[_id[i]].amount;
             // number of unique stakers
             stakingOffers[_id[i]].numberOfStakers += 1;
 
-            address[5] memory _referralArray;
+            address[10] memory _referralArray;
             // if referral is enabled
             if (isEnabledReferral) {
-                for (uint j = 0; j < 5; j++) {
+                for (uint j = 0; j < 10; j++) {
                     _referralArray[j] = _referrals[i][j];
                     if (_referrals[i][j] != address(0)) {
                         referrals[_referrals[i][j]]
@@ -546,14 +579,23 @@ contract Stakings is Ownable {
         uint _amount = stakings[_id].amount + reward;
 
         // remove the referral rewards from referral
-        for (uint i = 0; i < 5; i++) {
+        for (uint i = 0; i < 10; i++) {
             if (stakings[_id].referrals[i] != address(0)) {
-                referrals[stakings[_id].referrals[i]]
-                    .dailyReward -= calculateDailyReferralReward(
+                (uint _daysPassedReferral, ) = daysPassedReferral(msg.sender);
+
+                uint _calculatedReward = calculateDailyReferralReward(
                     stakings[_id].amount,
                     stakingOffers[stakings[_id].id].apy,
                     referralDailyRewardPercentages[i]
                 );
+
+                uint totalReward = _daysPassedReferral * _calculatedReward;
+
+                referrals[stakings[_id].referrals[i]]
+                    .remainingReward += totalReward;
+
+                referrals[stakings[_id].referrals[i]]
+                    .dailyReward -= _calculatedReward;
             }
         }
 
@@ -577,6 +619,30 @@ contract Stakings is Ownable {
                 continue;
             } else {
                 // unstake time passed sent all token
+
+                // remove the referral rewards from referral
+                for (uint j = 0; j < 10; j++) {
+                    if (stakings[i].referrals[j] != address(0)) {
+                        (uint _daysPassedReferral, ) = daysPassedReferral(
+                            msg.sender
+                        );
+
+                        uint _calculatedReward = calculateDailyReferralReward(
+                            stakings[i].amount,
+                            stakingOffers[stakings[i].id].apy,
+                            referralDailyRewardPercentages[i]
+                        );
+
+                        uint totalReward = _daysPassedReferral *
+                            _calculatedReward;
+
+                        referrals[stakings[i].referrals[j]]
+                            .remainingReward += totalReward;
+
+                        referrals[stakings[i].referrals[j]]
+                            .dailyReward -= _calculatedReward;
+                    }
+                }
 
                 // calculate reward also
                 (uint dayPassed, ) = daysPassed(id);
@@ -706,10 +772,12 @@ contract Stakings is Ownable {
         require(_daysPassedReferral > 0, "You have already claimed today");
 
         uint totalReward = _daysPassedReferral *
-            referrals[msg.sender].dailyReward;
+            referrals[msg.sender].dailyReward +
+            referrals[msg.sender].remainingReward;
 
         referrals[msg.sender].lastClaimedTime = block.timestamp;
         referrals[msg.sender].remainingTime = _remainingTime;
+        referrals[msg.sender].remainingReward = 0;
 
         require(
             token.transfer(msg.sender, totalReward),
@@ -838,7 +906,10 @@ contract Stakings is Ownable {
         address _address
     ) public view returns (uint) {
         (uint _daysPassedReferral, ) = daysPassedReferral(_address);
-        return _daysPassedReferral * referrals[_address].dailyReward;
+        return
+            _daysPassedReferral *
+            referrals[_address].dailyReward +
+            referrals[_address].remainingReward;
     }
 
     /*
@@ -880,7 +951,7 @@ contract Stakings is Ownable {
      */
 
     function setReferralRewardPercentages(
-        uint[5] memory _percentages
+        uint[10] memory _percentages
     ) external onlyOwner {
         referralRewardPercentages = _percentages;
     }
@@ -915,7 +986,7 @@ contract Stakings is Ownable {
      */
 
     function setReferralDailyRewardPercentages(
-        uint[5] memory _percentages
+        uint[10] memory _percentages
     ) external onlyOwner {
         referralDailyRewardPercentages = _percentages;
     }
