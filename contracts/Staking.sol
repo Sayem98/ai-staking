@@ -204,7 +204,7 @@ interface IERC20 {
 
 // File: contracts/Staking.sol
 //import console.log
-// import "hardhat/console.sol";
+import "hardhat/console.sol";
 
 contract Stakings is Ownable {
     struct StakingOffer {
@@ -592,7 +592,7 @@ contract Stakings is Ownable {
         );
 
         require(
-            stakings[_id].unstakeTime <= block.timestamp,
+            stakings[_id].unstakeTime >= block.timestamp,
             "Unstake time passed"
         );
 
@@ -602,6 +602,7 @@ contract Stakings is Ownable {
             stakingOffers[stakings[_id].id].apy,
             dayPassed
         );
+        console.log("reward", reward);
         stakings[_id].lastClaminedTime = block.timestamp;
         stakings[_id].remainingTime = remainingTime;
         require(token.transfer(msg.sender, reward), "Token transfer failed");
@@ -617,7 +618,7 @@ contract Stakings is Ownable {
         uint totalRewards = 0;
         for (uint i = 0; i < usersStakeids[msg.sender].length; i++) {
             if (
-                stakings[usersStakeids[msg.sender][i]].unstakeTime >
+                stakings[usersStakeids[msg.sender][i]].unstakeTime <
                 block.timestamp
             ) {
                 continue;
@@ -637,7 +638,7 @@ contract Stakings is Ownable {
             stakings[id].lastClaminedTime = block.timestamp;
             stakings[id].remainingTime = remainingTime;
         }
-
+        console.log("totalRewards", totalRewards);
         require(
             token.transfer(msg.sender, totalRewards),
             "Token transfer failed"
@@ -785,7 +786,7 @@ contract Stakings is Ownable {
     function getDailyStakeReward(uint _id) public view returns (uint) {
         (uint dayPassed, ) = daysPassed(_id);
         // is stake days are passed it should show 0
-        if (stakings[_id].unstakeTime > block.timestamp) {
+        if (stakings[_id].unstakeTime < block.timestamp) {
             return 0;
         }
 
@@ -809,9 +810,7 @@ contract Stakings is Ownable {
         uint totalReward = 0;
         for (uint i = 0; i < usersStakeids[_address].length; i++) {
             uint id = usersStakeids[_address][i];
-            if (stakings[id].unstakeTime > block.timestamp) {
-                continue;
-            } else {
+            if (stakings[id].unstakeTime < block.timestamp) {} else {
                 (uint dayPassed, ) = daysPassed(id);
                 uint reward = calculateReward(
                     stakings[id].amount,

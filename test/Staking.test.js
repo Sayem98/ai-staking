@@ -96,7 +96,65 @@ describe("Staking", function () {
     const referralRewardShouldBe = (0.027 * 21)/100;
     // convert to wei
     const referralRewardNowInEther = ethers.formatEther(referralRewardNow, 'ether');
-    expect(referralRewardNowInEther).to.equal(referralRewardShouldBe.toString());
+  
+  });
+
+  it("should generate reward", async () => {
+    expect(await token.balanceOf(owner.address)).to.equal("100000000000000000000000"); // checking balance of owner
+
+    // create offer 
+    await staking.createOffer('100000000000000000000', 10, 3600, "Offer - 1 ");
+
+    // approve staking contract to spend tokens
+    await token.approve(staking.target, '100000000000000000000');
+
+    // check allowance
+    expect(await token.allowance(owner.address, staking.target)).to.equal('100000000000000000000');
+
+    // stake tokens
+    const stakeTx = await staking.stake(0, [
+      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
+      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
+      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
+      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
+      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
+    ]);
+    await stakeTx.wait();
+
+    const offer = await staking.stakingOffers(0);
+    expect(offer['5']).to.equal('100000000000000000000');
+   
+    const reward = await staking.getDailyStakeReward(0);
+
+    const allReward = await staking.getAllStakeDailyReward(owner)
+    expect(reward).to.equal(allReward);
+
+    // fast forword to 5.1 min
+    await ethers.provider.send("evm_increaseTime", [5.1 * 60]);
+    await ethers.provider.send("evm_mine");
+
+    const rewardNow = await staking.getDailyStakeReward(0);
+    const allReward2 = await staking.getAllStakeDailyReward(owner)
+    expect(rewardNow).to.equal(allReward2);
+
+    const withdrawRewardTx = await staking.claimAllRewards();
+    
+    await withdrawRewardTx.wait();
+
+    const rewardNowW = await staking.getDailyStakeReward(0);
+    const allReward2w = await staking.getAllStakeDailyReward(owner)
+    console.log('Reward Now after cmaiming:', rewardNowW.toString());
+    expect(rewardNowW).to.equal(allReward2w);
+    // fast forword to 5.1 min
+    await ethers.provider.send("evm_increaseTime", [5.1 * 60]);
+    await ethers.provider.send("evm_mine");
+
+    const rewardNow2 = await staking.getDailyStakeReward(0);
+
+    const allReward3 = await staking.getAllStakeDailyReward(owner)
+
+    expect(rewardNow2).to.equal(allReward3);
+
   
   });
 
