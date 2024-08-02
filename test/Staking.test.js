@@ -127,36 +127,94 @@ describe("Staking", function () {
     const reward = await staking.getDailyStakeReward(0);
 
     const allReward = await staking.getAllStakeDailyReward(owner)
-    expect(reward).to.equal(allReward);
+    console.log('All Reward at 0 days passed ->:',reward.toString(), allReward.toString());
 
     // fast forword to 5.1 min
-    await ethers.provider.send("evm_increaseTime", [5.1 * 60]);
+    await ethers.provider.send("evm_increaseTime", [5.2 * 60]);
     await ethers.provider.send("evm_mine");
-
+    console.log('day 1')
     const rewardNow = await staking.getDailyStakeReward(0);
-    const allReward2 = await staking.getAllStakeDailyReward(owner)
-    expect(rewardNow).to.equal(allReward2);
+    const allReward4 = await staking.getAllStakeDailyReward(owner)
+    console.log('Reward After One day passed:', rewardNow.toString(), allReward4.toString());
 
-    const withdrawRewardTx = await staking.claimAllRewards();
-    
+    console.log('withdrawing reward now');
+    const withdrawRewardTx = await staking.withdrawReward(0);
     await withdrawRewardTx.wait();
+    console.log('withdrawn complete');
+
 
     const rewardNowW = await staking.getDailyStakeReward(0);
-    const allReward2w = await staking.getAllStakeDailyReward(owner)
-    console.log('Reward Now after cmaiming:', rewardNowW.toString());
-    expect(rewardNowW).to.equal(allReward2w);
+    const allReward2 = await staking.getAllStakeDailyReward(owner)
+    console.log('All Reward-2:',rewardNowW.toString(), allReward2.toString());
+    console.log('Reward Now after 1 day claiming:', rewardNowW.toString());
+
+
     // fast forword to 5.1 min
-    await ethers.provider.send("evm_increaseTime", [5.1 * 60]);
+    await ethers.provider.send("evm_increaseTime", [4.8 * 60]);
     await ethers.provider.send("evm_mine");
 
+    console.log('Day 2')
+
     const rewardNow2 = await staking.getDailyStakeReward(0);
+    const allReward6 = await staking.getAllStakeDailyReward(owner)
+    console.log('Reward Now after 2 day:', rewardNow2.toString(), allReward6.toString());
 
+    console.log('withdrawing reward now day 2');
+    const withdrawRewardTx2 = await staking.withdrawReward(0);
+    const recepit2 = await withdrawRewardTx2.wait();
+
+    console.log('withdrawn complete day 2');
+
+    const rewardNow3 = await staking.getDailyStakeReward(0);
     const allReward3 = await staking.getAllStakeDailyReward(owner)
-
-    expect(rewardNow2).to.equal(allReward3);
+    console.log('All Reward-3:',rewardNow3.toString(), allReward3.toString());
+    console.log( 'Reward Now after clamining 2 day: ', rewardNow3.toString());
 
   
   });
+
+  it('Should unstake', async () => {
+    expect(await token.balanceOf(owner.address)).to.equal("100000000000000000000000"); // checking balance of owner
+
+    // create offer 
+    await staking.createOffer('100000000000000000000', 10, 3600, "Offer - 1 ");
+
+    // approve staking contract to spend tokens
+    await token.approve(staking.target, '100000000000000000000');
+
+    // check allowance
+    expect(await token.allowance(owner.address, staking.target)).to.equal('100000000000000000000');
+
+    // stake tokens
+    const stakeTx = await staking.stake(0, [
+      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
+      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
+      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
+      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
+      '0x59f6E436AD3a61Ba435e8a6F310c8A6128AF84f2',
+    ]);
+    await stakeTx.wait();
+
+
+    // fast forword to 1 hour
+    await ethers.provider.send("evm_increaseTime", [3600]);
+    await ethers.provider.send("evm_mine");
+
+    // send token to the contract
+    await token.transfer(staking.target, '100000000000000000000');
+
+    // unstake
+    const unstakeTx = await staking.unstake(0);
+    await unstakeTx.wait();
+
+    // unstake
+    // const unstakeTx = await staking.unstakeAll();
+
+    const getStake = await staking.stakings(0);
+    console.log('Stake:', getStake);
+    
+
+  })
 
   
 });

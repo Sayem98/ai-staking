@@ -204,7 +204,7 @@ interface IERC20 {
 
 // File: contracts/Staking.sol
 //import console.log
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 contract Stakings is Ownable {
     struct StakingOffer {
@@ -223,6 +223,7 @@ contract Stakings is Ownable {
         uint unstakeTime;
         address staker;
         uint remainingTime;
+        address[5] referrals;
     }
 
     struct Referral {
@@ -387,7 +388,8 @@ contract Stakings is Ownable {
             lastClaminedTime: block.timestamp,
             unstakeTime: block.timestamp + stakingOffers[_id].lockPeriod,
             staker: msg.sender,
-            remainingTime: 0
+            remainingTime: 0,
+            referrals: _referrer
         });
 
         usersStakeids[msg.sender].push(numberOfStakes);
@@ -441,7 +443,8 @@ contract Stakings is Ownable {
             lastClaminedTime: block.timestamp,
             unstakeTime: block.timestamp + stakingOffers[_id].lockPeriod,
             staker: _staker,
-            remainingTime: 0
+            remainingTime: 0,
+            referrals: _referrals
         });
 
         usersStakeids[_staker].push(numberOfStakes);
@@ -476,18 +479,11 @@ contract Stakings is Ownable {
             // number of unique stakers
             stakingOffers[_id[i]].numberOfStakers += 1;
 
-            stakings[numberOfStakes] = Staking({
-                id: _id[i],
-                amount: stakingOffers[_id[i]].amount,
-                lastClaminedTime: block.timestamp,
-                unstakeTime: block.timestamp + stakingOffers[_id[i]].lockPeriod,
-                staker: _staker[i],
-                remainingTime: 0
-            });
-
+            address[5] memory _referralArray;
             // if referral is enabled
             if (isEnabledReferral) {
                 for (uint j = 0; j < 5; j++) {
+                    _referralArray[j] = _referrals[i][j];
                     if (_referrals[i][j] != address(0)) {
                         referrals[_referrals[i][j]]
                             .dailyReward += calculateDailyReferralReward(
@@ -502,6 +498,16 @@ contract Stakings is Ownable {
                     }
                 }
             }
+
+            stakings[numberOfStakes] = Staking({
+                id: _id[i],
+                amount: stakingOffers[_id[i]].amount,
+                lastClaminedTime: block.timestamp,
+                unstakeTime: block.timestamp + stakingOffers[_id[i]].lockPeriod,
+                staker: _staker[i],
+                remainingTime: 0,
+                referrals: _referralArray
+            });
 
             usersStakeids[_staker[i]].push(numberOfStakes);
             emit Staked(
@@ -526,7 +532,7 @@ contract Stakings is Ownable {
             "You are not the staker of this stake"
         );
         require(
-            stakings[_id].unstakeTime > block.timestamp,
+            stakings[_id].unstakeTime <= block.timestamp,
             "Unstake time not passed"
         );
         // unstake time passed sent all token
@@ -538,6 +544,18 @@ contract Stakings is Ownable {
             dayPassed
         );
         uint _amount = stakings[_id].amount + reward;
+
+        // remove the referral rewards from referral
+        for (uint i = 0; i < 5; i++) {
+            if (stakings[_id].referrals[i] != address(0)) {
+                referrals[stakings[_id].referrals[i]]
+                    .dailyReward -= calculateDailyReferralReward(
+                    stakings[_id].amount,
+                    stakingOffers[stakings[_id].id].apy,
+                    referralDailyRewardPercentages[i]
+                );
+            }
+        }
 
         delete stakings[_id];
         require(token.transfer(msg.sender, _amount), "Token transfer failed");
@@ -555,7 +573,7 @@ contract Stakings is Ownable {
         uint totalAmount = 0;
         for (uint i = 0; i < usersStakeids[msg.sender].length; i++) {
             uint id = usersStakeids[msg.sender][i];
-            if (stakings[id].unstakeTime < block.timestamp) {
+            if (stakings[id].unstakeTime >= block.timestamp) {
                 continue;
             } else {
                 // unstake time passed sent all token
@@ -591,18 +609,12 @@ contract Stakings is Ownable {
             "You are not the staker of this stake"
         );
 
-        require(
-            stakings[_id].unstakeTime >= block.timestamp,
-            "Unstake time passed"
-        );
-
         (uint dayPassed, uint remainingTime) = daysPassed(_id);
         uint reward = calculateReward(
             stakings[_id].amount,
             stakingOffers[stakings[_id].id].apy,
             dayPassed
         );
-        console.log("reward", reward);
         stakings[_id].lastClaminedTime = block.timestamp;
         stakings[_id].remainingTime = remainingTime;
         require(token.transfer(msg.sender, reward), "Token transfer failed");
@@ -617,12 +629,6 @@ contract Stakings is Ownable {
     function claimAllRewards() external {
         uint totalRewards = 0;
         for (uint i = 0; i < usersStakeids[msg.sender].length; i++) {
-            if (
-                stakings[usersStakeids[msg.sender][i]].unstakeTime <
-                block.timestamp
-            ) {
-                continue;
-            }
             uint id = usersStakeids[msg.sender][i];
             (uint dayPassed, uint remainingTime) = daysPassed(id);
             uint reward = calculateReward(
@@ -638,11 +644,11 @@ contract Stakings is Ownable {
             stakings[id].lastClaminedTime = block.timestamp;
             stakings[id].remainingTime = remainingTime;
         }
-        console.log("totalRewards", totalRewards);
         require(
             token.transfer(msg.sender, totalRewards),
             "Token transfer failed"
         );
+
         emit Claimed(msg.sender, msg.sender, totalRewards);
     }
 
