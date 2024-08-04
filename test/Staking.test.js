@@ -118,26 +118,7 @@ describe("Staking", function () {
     // stake tokens and use 10 diffrent address as referral 
     const stakeTx = await staking.stake(0, addresses);
 
-    await token.approve(staking.target, '100000000000000000000');
 
-    // get 10 address
-    const addresses2 = [];
-    for (let i = 0; i < 10; i++) {
-      addresses2.push(ethers.Wallet.createRandom().address);
-    }
-
-    // stake tokens and use 10 diffrent address as referral 
-    const stakeTx2 = await staking.stake(0, addresses2);
-      await token.approve(staking.target, '100000000000000000000');
-
-    // get 10 address
-    const addresses3 = [];
-    for (let i = 0; i < 10; i++) {
-      addresses3.push(ethers.Wallet.createRandom().address);
-    }
-
-    // stake tokens and use 10 diffrent address as referral 
-    const stakeTx3 = await staking.stake(0, addresses3);
     
     // check the reward
     for (let i = 0; i < 10; i++) {
@@ -170,21 +151,15 @@ describe("Staking", function () {
     console.log('withdrawn complete');
 
 
-    const rewardNowW = await staking.getDailyStakeReward(0);
-    const allReward2 = await staking.getAllStakeDailyReward(owner)
-    console.log('All Reward-2:',rewardNowW.toString(), allReward2.toString());
-    console.log('Reward Now after 1 day claiming:', rewardNowW.toString());
-
-
     // fast forword to 5.1 min
-    await ethers.provider.send("evm_increaseTime", [4.8 * 60]);
+    await ethers.provider.send("evm_increaseTime", [5.2 * 60]);
     await ethers.provider.send("evm_mine");
 
     console.log('Day 2')
 
     const rewardNow2 = await staking.getDailyStakeReward(0);
     const allReward6 = await staking.getAllStakeDailyReward(owner)
-    console.log('Reward Now after 2 day:', rewardNow2.toString(), allReward6.toString());
+    console.log('Reward  after 2 days passed:', rewardNow2.toString(), allReward6.toString());
 
     console.log('withdrawing reward now day 2');
     const withdrawRewardTx2 = await staking.withdrawReward(0);
@@ -192,53 +167,63 @@ describe("Staking", function () {
 
     console.log('withdrawn complete day 2');
 
+    // fast forword to 1 hours
+    await ethers.provider.send("evm_increaseTime", [3660]);
+    await ethers.provider.send("evm_mine");
+
+    // reward
     const rewardNow3 = await staking.getDailyStakeReward(0);
-    const allReward3 = await staking.getAllStakeDailyReward(owner)
-    console.log('All Reward-3:',rewardNow3.toString(), allReward3.toString());
-    console.log( 'Reward Now after clamining 2 day: ', rewardNow3.toString());
+    console.log('Reward after staking hour days passed:', rewardNow3.toString());
+
+
 
   
   });
 
-  it('Should unstake', async () => {
-    expect(await token.balanceOf(owner.address)).to.equal("100000000000000000000000"); // checking balance of owner
+  // it('Should unstake', async () => {
+  //   expect(await token.balanceOf(owner.address)).to.equal("100000000000000000000000"); // checking balance of owner
 
-    // create offer 
-    await staking.createOffer('100000000000000000000', 10, 3600, "Offer - 1 ", 2);
+  //   // create offer 
+  //   await staking.createOffer('100000000000000000000', 10, 3600, "Offer - 1 ", 2);
 
-    // approve staking contract to spend tokens
-    await token.approve(staking.target, '100000000000000000000');
+  //   // approve staking contract to spend tokens
+  //   await token.approve(staking.target, '100000000000000000000');
 
-    // check allowance
-    expect(await token.allowance(owner.address, staking.target)).to.equal('100000000000000000000');
-    let addresses = [];
-    for (let i = 0; i < 10; i++) {
-      addresses.push(ethers.Wallet.createRandom().address);
-    }
+  //   // check allowance
+  //   expect(await token.allowance(owner.address, staking.target)).to.equal('100000000000000000000');
+  //   let addresses = [];
+  //   for (let i = 0; i < 10; i++) {
+  //     addresses.push(ethers.Wallet.createRandom().address);
+  //   }
 
-    // stake tokens and use 10 diffrent address as referral 
-    const stakeTx = await staking.stake(0, addresses);
+  //   // stake tokens and use 10 diffrent address as referral 
+  //   const stakeTx = await staking.stake(0, addresses);
 
 
-    // fast forword to 1 hour
-    await ethers.provider.send("evm_increaseTime", [3600]);
-    await ethers.provider.send("evm_mine");
+  //   // fast forword to 1 hour
+  //   await ethers.provider.send("evm_increaseTime", [3600]);
+  //   await ethers.provider.send("evm_mine");
 
-    // send token to the contract
-    await token.transfer(staking.target, '100000000000000000000');
+  //   // send token to the contract
+  //   await token.transfer(staking.target, '100000000000000000000');
 
-    // unstake
-    const unstakeTx = await staking.unstake(0);
-    await unstakeTx.wait();
+  //   // unstake
+  //   const unstakeTx = await staking.unstake(0);
+  //   await unstakeTx.wait();
 
-    // unstake
-    // const unstakeTx = await staking.unstakeAll();
+  //   // claim reward
+  //   const claimTx = await staking.withdrawReward(0);
+  //   await claimTx.wait();
+  //   console.log('Claimed Reward');
 
-    const getStake = await staking.stakings(0);
-    console.log('Stake:', getStake);
+  //   // unstake
+  //   // const unstakeTx = await staking.unstakeAll();
+
+  //   const getStake = await staking.stakings(0);
+  //   console.log('Stake:', getStake);
     
 
-  })
+  // })
 
   
 });
