@@ -607,10 +607,10 @@ contract Stakings is Ownable {
                     referralDailyRewardPercentages[i]
                 );
 
-                // uint totalReward = _daysPassedReferral * _calculatedReward;
+                uint totalReward = _daysPassedReferral * _calculatedReward;
 
-                // referrals[stakings[_id].referrals[i]]
-                //     .remainingReward += totalReward;
+                // send reward
+                token.transfer(stakings[_id].referrals[i], totalReward);
 
                 referrals[stakings[_id].referrals[i]]
                     .dailyReward -= _calculatedReward;
@@ -633,7 +633,10 @@ contract Stakings is Ownable {
         uint totalAmount = 0;
         for (uint i = 0; i < usersStakeids[msg.sender].length; i++) {
             uint id = usersStakeids[msg.sender][i];
-            if (stakings[id].isUnstaked == true) {
+            if (
+                stakings[id].isUnstaked == true ||
+                stakings[id].unstakeTime <= block.timestamp
+            ) {
                 continue;
             } else {
                 // unstake time passed sent all token
@@ -728,7 +731,6 @@ contract Stakings is Ownable {
 
             stakings[id].lastClaminedTime = block.timestamp;
             stakings[id].remainingTime = remainingTime;
-            stakings[id].amount = 0;
         }
         require(
             token.transfer(msg.sender, totalRewards),
