@@ -257,4 +257,86 @@ describe("Staking", function () {
       rewardNow3.toString()
     );
   });
+
+  it("should stake then unstake after stake period", async () => {
+    expect(await token.balanceOf(owner.address)).to.equal(
+      "100000000000000000000000"
+    ); // checking balance of owner
+
+    // create offer
+    await staking.createOffer(
+      "10000000000000000000",
+      10,
+      3600,
+      "Offer - 1 ",
+      2
+    );
+
+    // approve staking contract to spend tokens
+    await token.approve(staking.target, "10000000000000000000");
+
+    // check allowance
+    expect(await token.allowance(owner.address, staking.target)).to.equal(
+      "10000000000000000000"
+    );
+
+    // send some tokens to the contract
+    await token.transfer(staking.target, "10000000000000000000");
+
+    // get 10 address
+    const addresses = [];
+    for (let i = 0; i < 10; i++) {
+      addresses.push(ethers.Wallet.createRandom().address);
+    }
+    console.log("addresses", addresses);
+
+    // stake tokens and use 10 diffrent address as referral
+    const stakeTx = await staking.stake(0, addresses);
+
+    await stakeTx.wait();
+    console.log("staked");
+
+    // fast forword to 1 hour
+    await ethers.provider.send("evm_increaseTime", [3660]);
+    await ethers.provider.send("evm_mine");
+
+    // calculate total reward for the referrals
+    const stake = await staking.stakings(0);
+    const allReferrals = await staking.getStakeReferrals(0);
+    console.log("stake", stake);
+    console.log("referrals", allReferrals);
+
+    // get all referral rewards
+    let totalReferralReward = 0;
+    for (let i = 0; i < 10; i++) {
+      const referralReward = await staking.getDailyReferralReward(addresses[i]);
+      // convert to ether
+      const referralRewardInEther = ethers.formatEther(referralReward, "ether");
+      totalReferralReward += Number(referralRewardInEther);
+    }
+
+    console.log("totalReferralReward", totalReferralReward);
+
+    // get all stake rewards
+    const reward = await staking.getDailyStakeReward(0);
+    const rewardInEther = ethers.formatEther(reward, "ether");
+    console.log("reward", rewardInEther);
+
+    // stake amount
+    const stakeAmount = ethers.formatEther(stake["1"], "ether");
+    console.log("stakeAmount", stakeAmount);
+
+    // contract token balance
+    const contractBalance = await token.balanceOf(staking.target);
+    const contractBalanceInEther = ethers.formatEther(contractBalance, "ether");
+    console.log("contractBalance", contractBalanceInEther);
+    console.log(
+      "total: " +
+        (totalReferralReward + Number(rewardInEther) + Number(stakeAmount))
+    );
+
+    // unstake
+    const unstakeTx = await staking.unstake(0);
+    await unstakeTx.wait();
+  });
 });

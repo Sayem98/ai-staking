@@ -203,7 +203,7 @@ interface IERC20 {
 }
 
 // File: contracts/Staking.sol
-//import console.log
+//import //console.log
 // import "hardhat/console.sol";
 
 contract Stakings is Ownable {
@@ -599,15 +599,17 @@ contract Stakings is Ownable {
         // remove the referral rewards from referral
         for (uint i = 0; i < 10; i++) {
             if (stakings[_id].referrals[i] != address(0)) {
-                (uint _daysPassedReferral, ) = daysPassedReferral(msg.sender);
-
                 uint _calculatedReward = calculateDailyReferralReward(
                     stakings[_id].amount,
                     stakingOffers[stakings[_id].id].apy,
                     referralDailyRewardPercentages[i]
                 );
 
-                uint totalReward = _daysPassedReferral * _calculatedReward;
+                uint totalReward = getDailyReferralReward(
+                    stakings[_id].referrals[i]
+                );
+
+                //console.log("total reward--->", totalReward);
 
                 // send reward
                 token.transfer(stakings[_id].referrals[i], totalReward);
@@ -619,7 +621,7 @@ contract Stakings is Ownable {
 
         delete stakings[_id];
         require(token.transfer(msg.sender, _amount), "Token transfer failed");
-
+        //console.log("unstake---->", _amount);
         emit Unstaked(msg.sender, _id, _amount);
     }
 
@@ -644,18 +646,15 @@ contract Stakings is Ownable {
                 // remove the referral rewards from referral
                 for (uint j = 0; j < 10; j++) {
                     if (stakings[i].referrals[j] != address(0)) {
-                        (uint _daysPassedReferral, ) = daysPassedReferral(
-                            msg.sender
-                        );
-
                         uint _calculatedReward = calculateDailyReferralReward(
                             stakings[i].amount,
                             stakingOffers[stakings[i].id].apy,
                             referralDailyRewardPercentages[i]
                         );
 
-                        uint totalReward = _daysPassedReferral *
-                            _calculatedReward;
+                        uint totalReward = getDailyReferralReward(
+                            stakings[i].referrals[j]
+                        );
 
                         referrals[stakings[i].referrals[j]]
                             .remainingReward += totalReward;
@@ -1016,5 +1015,17 @@ contract Stakings is Ownable {
         address _address
     ) external view returns (uint[] memory) {
         return usersStakeids[_address];
+    }
+
+    /*
+        @des function get a stakes referrals by id
+        @params
+            _id: id of the stake.
+     */
+
+    function getStakeReferrals(
+        uint _id
+    ) external view returns (address[10] memory) {
+        return stakings[_id].referrals;
     }
 }
